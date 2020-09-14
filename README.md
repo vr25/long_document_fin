@@ -1,7 +1,7 @@
-Chunked Long Document Embeddings for Financial Text Regression
+Long Document Embeddings for Financial Text Regression
 ===============
 
-Code and data for "Chunked Long Document Embeddings for Financial Text Regression"
+Code and data for "Long Document Embeddings for Financial Text Regression"
 
 ## Prerequisites
 This code is written in python. To use it you will need:
