@@ -1,3 +1,4 @@
+import gc
 import os
 import random
 import sys
@@ -13,6 +14,7 @@ import transformers
 from transformers import AutoModel, AutoTokenizer 
 from transformers import AdamW
 from torch.cuda.amp import autocast
+import tensorflow as tf
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import time
@@ -26,7 +28,7 @@ random.seed(seed_val)
 np.random.seed(seed_val)
 torch.manual_seed(seed_val)
 torch.cuda.manual_seed_all(seed_val)
-
+tf.set_random_seed(0)
 
 class BERT_Arch(nn.Module):
 
@@ -55,26 +57,21 @@ class BERT_Arch(nn.Module):
 
         for i in range(len(sent_id)):
 
+            #print("chunk i: ", i)
+
             ip_id = torch.tensor(sent_id[i]).unsqueeze(0).to(device)
             attn_mask = torch.tensor(mask[i]).unsqueeze(0).to(device)
 
             #pass the inputs to the model  
             _, cls_hs = self.bert(input_ids=ip_id, attention_mask=attn_mask)
 
-            cls_vec.append(cls_hs)
+            cls_vec.append(cls_hs.cpu().data.numpy())
 
-            del ip_id
-            del attn_mask
-            del cls_hs
-            torch.cuda.empty_cache()
+        cls_vec = np.vstack(cls_vec)
+        cls_vec = np.mean(cls_vec, axis=0)
+        cls_vec = torch.tensor(cls_vec).unsqueeze(0).to(device)
 
-        cls_vec = torch.stack(cls_vec, 0)
-        cls_vec = torch.mean(cls_vec, 0)
-        
         x = self.fc1(cls_vec)
-
-        del cls_vec
-        torch.cuda.empty_cache()
 
         x = self.relu(x)
 
@@ -89,11 +86,6 @@ class BERT_Arch(nn.Module):
         # output layer
         y = self.fc2(x)
 
-        del x
-        torch.cuda.empty_cache()
-
-        print("final o/p: ", y.shape)
-
         return y
 
 
@@ -101,8 +93,6 @@ class BERT_Arch(nn.Module):
 def train():
 
     model.train()
-
-    torch.cuda.empty_cache()
 
     total_loss, total_accuracy = 0, 0
   
@@ -125,8 +115,6 @@ def train():
         with autocast():
             # get model predictions for the current batch
             preds = model(sent_id, mask, hist)
-
-            print('inside train: ', preds.shape)
 
             # compute the loss between actual and predicted values
             loss = mse_loss(preds, labels)
@@ -177,10 +165,10 @@ def evaluate():
     # iterate over list of documents
     for i in range(len(val_seq)):
 
-        sent_id = train_seq[i]
-        mask = train_mask[i]
-        hist = torch.tensor(train_hist[i]).to(device)
-        labels = torch.tensor(train_y[i]).to(device)
+        sent_id = val_seq[i]
+        mask = val_mask[i]
+        hist = val_hist[i]
+        labels = val_y[i].unsqueeze(0).unsqueeze(0)
 
         # deactivate autograd
         with torch.no_grad():
@@ -207,21 +195,21 @@ def evaluate():
     return avg_loss, total_preds
 
 
-def test(ckpt_model):
+def test():
 
     # empty list to save the model predictions
     total_preds = []
 
     for i in range(len(test_seq)):
 
-        sent_id = train_seq[i]
-        mask = train_mask[i]
-        hist = torch.tensor(train_hist[i]).to(device)
-        labels = torch.tensor(train_y[i]).to(device)
+        sent_id = test_seq[i]
+        mask = test_mask[i]
+        hist = test_hist[i]
+        labels = test_y[i].unsqueeze(0).unsqueeze(0)
 
         with torch.no_grad():
             with autocast():
-                preds = ckpt_model(sent_id, mask, hist)
+                preds = model(sent_id, mask, hist)
             preds = preds.detach().cpu().numpy()
             # append the model predictions
             total_preds.append(preds)
@@ -236,7 +224,7 @@ def test(ckpt_model):
 device = torch.device("cuda")
 
 df = pd.read_csv("new_all_2436_mda_roa.csv", index_col=False)
-df = df[:10]
+#df = df[:10]
 
 max_length = 510 #append two [CLS] and [SEP] tokens to make 512
 
@@ -249,6 +237,7 @@ train_text, temp_text, train_hist, temp_hist, train_labels, temp_labels = train_
 val_text, test_text, val_hist, test_hist, val_labels, test_labels = train_test_split(temp_text, temp_hist, temp_labels, 
                                                                 random_state=2018, 
                                                                 test_size=0.5) 
+bert_path = os.getcwd()
 
 # import BERT-base pretrained model
 bert = AutoModel.from_pretrained('bert-base-uncased') #allenai/longformer-base-4096') #bert-base-uncased')
@@ -348,6 +337,11 @@ test_mask = [[[1] + test_mask[j][i] + [1] if len(test_mask[j][i]) == max_length 
 train_hist = torch.tensor(train_hist.tolist()).to(device)
 train_y = torch.tensor(train_labels.tolist()).to(device)
 
+val_hist = torch.tensor(val_hist.tolist()).to(device)
+val_y = torch.tensor(val_labels.tolist()).to(device)
+
+test_hist = torch.tensor(test_hist.tolist()).to(device)
+test_y = torch.tensor(test_labels.tolist()).to(device)
 
 # freeze all the parameters
 for param in bert.parameters():
@@ -361,13 +355,13 @@ model = model.to(device)
 
 # define the optimizer
 optimizer = AdamW(model.parameters(),
-                  lr = 1e-2)          # learning rate
+                  lr = 1e-5)          # learning rate
 
 # define the loss function
 mse_loss  = nn.MSELoss()  
 
 # number of training epochs
-epochs = 2
+epochs = 5
 
 # set initial loss to infinite
 best_valid_loss = float('inf')
@@ -402,17 +396,26 @@ for epoch in range(epochs):
     print(f'Validation Loss: {valid_loss:.3f}')
 
 
+del model
+torch.cuda.empty_cache()
+
+# pass the pre-trained BERT to our define architecture
+model = BERT_Arch(bert)
+
+# push the model to GPU
+model = model.to(device)
 
 #load weights of best model
 path = 'saved_weights_bert_chunk_ft.pt'
 model.load_state_dict(torch.load(path))
 
-ckpt_model = model
-
 # get predictions for test data
-preds = np.asarray(test(ckpt_model))
+preds = np.asarray(test())
 
-test_y = test_y.numpy()
+test_y = test_y.cpu().data.numpy()
+
+print("preds: ", preds, preds.shape)
+print("test_y: ", test_y, test_y.shape)
 
 mse = mean_squared_error(test_y, preds)
 
