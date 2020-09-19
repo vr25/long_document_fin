@@ -38,7 +38,7 @@ class BERT_Arch(nn.Module):
         self.bert = bert 
       
         # dropout layer
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.1)
       
         # relu activation function
         self.relu =  nn.ReLU()
@@ -391,7 +391,7 @@ for epoch in range(epochs):
         best_valid_loss = valid_loss
 
         model_to_save = model.module if hasattr(model, 'module') else model
-        torch.save(model_to_save.state_dict(), 'saved_weights_dp5_lr1e3_lf512_chunk_ft.pt')
+        torch.save(model_to_save.state_dict(), 'saved_weights_dp1_lr1e3_lf512_chunk_ft.pt')
     
     # append training and validation loss
     train_losses.append(train_loss)
@@ -412,7 +412,7 @@ model = BERT_Arch(bert)
 model = model.to(device)
 
 #load weights of best model
-path = 'saved_weights_dp5_lr1e3_lf512_chunk_ft.pt'
+path = 'saved_weights_dp1_lr1e3_lf512_chunk_ft.pt'
 model.load_state_dict(torch.load(path))
 
 # get predictions for test data
@@ -425,11 +425,11 @@ mse = mean_squared_error(test_y, preds)
 test_error = pd.DataFrame()
 test_error['test_y'] = test_y.tolist()
 test_error['preds'] = [p[0] for p in preds.tolist()]
-test_error.to_csv("error_dp5_lr1e3_lf512_chunk_ft.csv", index=False)
+test_error.to_csv("error_dp1_lr1e3_lf512_chunk_ft.csv", index=False)
 
 print("mse: ", mse)
 
-mse_file = open("mse_dp5_lr1e3_lf512_chunk_ft.txt", "w")
+mse_file = open("mse_dp1_lr1e3_lf512_chunk_ft.txt", "w")
 mse_file.write(str(mse))
 mse_file.close()
 
