@@ -39,7 +39,7 @@ class BERT_Arch(nn.Module):
         self.bert = bert 
       
         # dropout layer
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.1)
       
         # relu activation function
         self.relu =  nn.ReLU()
@@ -355,7 +355,7 @@ model = model.to(device)
 
 # define the optimizer
 optimizer = AdamW(model.parameters(),
-                  lr = 1e-5)          # learning rate
+                  lr = 1e-3)          # learning rate
 
 # define the loss function
 mse_loss  = nn.MSELoss()  
