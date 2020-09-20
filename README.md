@@ -17,7 +17,7 @@ This code is written in python. To use it you will need:
 The data file ```new_all_2436_mda_roa.csv``` containing all sec7/7A alongwith their corresponding ROA values and the tokenized text file ```data_2436.csv``` can be found at [Zenodo](https://zenodo.org/record/4029317#.X1-2iHXNY5k)
 
 
-To run docBERT for single task regression:
+**To run docBERT for single task regression:**
 Please note that original docBERT can be found at: 
 ```$ git clone https://github.com/castorini/hedwig.git``` but for this work, use modified docBERT for regression provided in this repo under directory ```hedwig```.
 1. Download the dataset at: ```$ git clone https://git.uwaterloo.ca/jimmylin/hedwig-data.git```
