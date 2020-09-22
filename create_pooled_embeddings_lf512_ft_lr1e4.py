@@ -56,7 +56,7 @@ class BERT_Arch(nn.Module):
         torch.cuda.empty_cache()
 
         d = 768
-        cls_vec = torch.zeros(1,d).to(device)
+        cls_vec = torch.zeros((1,d), requires_grad=True).to(device)
         chunk_num = len(sent_id)
         print("# chunks: ", chunk_num)
 
