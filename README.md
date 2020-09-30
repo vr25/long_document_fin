@@ -29,3 +29,7 @@ Please note that original docBERT can be found at:
 ```
 3. Run python ```create_docbert_reg_data.py``` to create ```train.tsv```, ```dev.tsv``` and ```test.tsv``` data files from ```new_all_2436_mda_roa.csv``` and replace the files in ```/hedwig/hedwig-data/datasets/IMDB/``` with the newly generated data files.
 4. Run ```python -m models.bert --dataset IMDB --model bert-base-uncased --max-seq-length 512 --batch-size 16 --lr 1e-3 --epochs 5``` for docBERT.
+
+
+**To run BERT-chunk-fine-tune (dp) for single task regression:**
+```python training.py --model_storage_directory op_run --bert_model_path bert-base-uncased --architecture DocumentBertMaxPool --batch_size 2 --bert_batch_size 2 --epochs 5 --learning_rate 1e-4 --evaluation_interval 2 --checkpoint_interval 2 --cuda --model_directory sub_run```
