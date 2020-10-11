@@ -183,13 +183,13 @@ def chunk_train(trial):
 
 
     train_data = TensorDataset(X_train, y_train)
-    train_dataloader = DataLoader(train_data, batch_size=1)
+    train_dataloader = DataLoader(train_data, batch_size=25)
 
     val_data = TensorDataset(X_val, y_val)    
-    val_dataloader = DataLoader(val_data, batch_size=1)
+    val_dataloader = DataLoader(val_data, batch_size=25)
 
     test_data = TensorDataset(X_test, y_test) 
-    test_dataloader = DataLoader(test_data, batch_size=1)
+    test_dataloader = DataLoader(test_data, batch_size=25)
 
     # specify GPU
     device = torch.device("cuda")
